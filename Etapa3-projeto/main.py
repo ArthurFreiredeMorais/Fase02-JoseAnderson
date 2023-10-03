@@ -1,6 +1,6 @@
-import csv
-from bs4 import BeautifulSoup
+import json
 import requests
+from bs4 import BeautifulSoup
 from pymongo import MongoClient
 
 # URL da página da web
@@ -14,33 +14,27 @@ soup = BeautifulSoup(html_content, 'html.parser')
 # Encontrar todos os elementos <p> e filtrar aqueles que contêm o texto "futebol"
 futebol_paragraphs = [p.get_text().strip() for p in soup.find_all('p') if "futebol" in p.get_text().lower()]
 
-# Salvar dados em um arquivo CSV
-csv_filename = "dados.csv"
+# Salvar dados em um arquivo JSON
+json_filename = "dados.json"
 
-with open(csv_filename, mode='w', newline='', encoding='utf-8') as csv_file:
-    fieldnames = ["texto"]
-    writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-
-    writer.writeheader()
-
-    for paragraph in futebol_paragraphs:
-        writer.writerow({"texto": paragraph})
+with open(json_filename, mode='w', encoding='utf-8') as json_file:
+    data = {"textos": futebol_paragraphs}
+    json.dump(data, json_file, ensure_ascii=False, indent=4)
 
 # Conexão com o MongoDB
 client = MongoClient('mongodb://localhost:27017')
-db = client['WebScraping']
-collection = db['textofutebol']
+db = client['WebScrapingJSON']
+collection = db['textofutebolJSON']
 
-# Ler dados do arquivo CSV e inserir no MongoDB
-with open(csv_filename, 'r', newline='', encoding='utf-8') as csv_file:
-     # Criar um leitor de CSV que interpreta cada linha como um dicionário
-    csv_reader = csv.DictReader(csv_file)
-     # Iterar pelas linhas do arquivo CSV
-    for idx, row in enumerate(csv_reader, start=1):
-         # Criar um dicionário contendo os dados da linha atual
+# Ler dados do arquivo JSON e inserir no MongoDB
+with open(json_filename, 'r', encoding='utf-8') as json_file:
+    data = json.load(json_file)
+    textos = data.get("textos", [])
+
+    for idx, texto in enumerate(textos, start=1):
         data = {
             "id": idx,  # Atribuir um ID único baseado no índice
-            "texto": row['texto']  # Extrair o texto da coluna 'texto'
+            "texto": texto  # Extrair o texto da coluna 'texto'
         }
         collection.insert_one(data)
         print(f'Dados {idx} inseridos com sucesso no MongoDB.')
